@@ -8,6 +8,15 @@ from pyo import *
 ###
 
 
+
+
+
+
+###			   ###
+### 01 - INTRO ###
+###			   ###
+
+
 def sine_wave():
 	s = Server().boot()
 	s.start()
@@ -66,6 +75,10 @@ def output_channels():
 	hp = ButHP(n).out(1)
 	s.gui(locals())
 
+
+###				  ###
+### 02 - CONTROLS ###
+###				  ###
 
 
 def fixed_control():
@@ -331,6 +344,14 @@ def handling_channels_4():
 	a.out(chnl=[3,4,2,5,1,6,0,7])
 
 	s.gui(locals())
+
+
+
+###					###
+### 03 - GENERATORS ###
+###					###
+
+
 
 
 
