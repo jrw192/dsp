@@ -42,5 +42,12 @@ def random_generators():
 
 	s.gui(locals())
 
+
+
+
+
+
+
+
 if __name__ == "__main__":
-	random_generators()
+	snippet()
