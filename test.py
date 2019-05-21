@@ -1,4 +1,5 @@
 from pyo import *
+import random
 
 
 
@@ -115,6 +116,8 @@ def dynamic_control():
 	# Opens the controller windows.
 	a.ctrl(title="Frequency modulation left channel")
 	b.ctrl(title="Frequency modulation right channel")
+
+	sc = Scope([a, b])
 
 	s.gui(locals())
 
@@ -354,6 +357,329 @@ def handling_channels_4():
 
 
 
+def complex_oscs():
+	# Blit: Impulse train generator with control over the number of harmonics.
+	# RCOsc: Aproximation of a RC circuit (a capacitor and a resistor in series).
+	# SineLoop: Sine wave oscillator with feedback.
+	# SuperSaw: Roland JP-8000 Supersaw emulator.
+
+
+	s = Server().boot()
+
+	# Sets fundamental frequency.
+	freq = 187.5
+
+	# Impulse train generator.
+	lfo1 = Sine(.1).range(1, 50)
+	osc1 = Blit(freq=freq, harms=lfo1, mul=0.3)
+
+	# RC circuit.
+	lfo2 = Sine(.1, mul=0.5, add=0.5)
+	osc2 = RCOsc(freq=freq, sharp=lfo2, mul=0.3)
+
+	# Sine wave oscillator with feedback.
+	lfo3 = Sine(.1).range(0, .18)
+	osc3 = SineLoop(freq=freq, feedback=lfo3, mul=0.3)
+
+	# Roland JP-8000 Supersaw emulator.
+	lfo4 = Sine(.1).range(0.1, 0.75)
+	osc4 = SuperSaw(freq=freq, detune=lfo4, mul=0.3)
+
+	# Interpolates between input objects to produce a single output
+	sel = Selector([osc1, osc2, osc3, osc4]).out()
+	sel.ctrl(title="Input interpolator (0=Blit, 1=RCOsc, 2=SineLoop, 3=SuperSaw)")
+
+	# Displays the waveform of the chosen source
+	sc = Scope(sel)
+
+	# Displays the spectrum contents of the chosen source
+	sp = Spectrum(sel)
+
+	s.gui(locals())
+
+
+
+def band_limited_oscs():
+	# Oscillators whose spectrum is kept under the Nyquist frequency.
+
+	# LFO: can be used as a standard oscillators, at low freqs is a true LFO with various shapes:
+	# 0 Saw up (default)
+	# 1 Saw down
+	# 2 Square
+	# 3 Triangle
+	# 4 Pulse
+	# 5 Bipolar pulse
+	# 6 Sample and hold
+	# 7 Modulated Sine
+
+	s = Server().boot()
+
+	# Sets fundamental frequency.
+	freq = 187.5
+
+	# LFO applied to the `sharp` attribute
+	lfo = Sine(.2, mul=0.5, add=0.5)
+
+	# Various band-limited waveforms
+	osc = LFO(freq=freq, sharp=lfo, mul=0.4).out()
+	osc.ctrl()
+
+	# Displays the waveform
+	sc = Scope(osc)
+
+	# Displays the spectrum contents
+	sp = Spectrum(osc)
+
+	s.gui(locals())
+
+
+
+def fm_generators():
+	# frequency modulation algorithm
+	s = Server().boot()
+
+	# FM implements the basic Chowning algorithm
+	fm1 = FM(carrier=250, ratio=[1.5,1.49], index=10, mul=0.3)
+	fm1.ctrl()
+
+	# CrossFM implements a frequency modulation synthesis where the
+	# output of both oscillators modulates the frequency of the other one.
+	fm2 = CrossFM(carrier=250, ratio=[1.5,1.49], ind1=10, ind2=2, mul=0.3)
+	fm2.ctrl()
+
+	# Interpolates between input objects to produce a single output
+	sel = Selector([fm1, fm2]).out()
+	sel.ctrl(title="Input interpolator (0=FM, 1=CrossFM)")
+
+	# Displays the spectrum contents of the chosen source
+	sp = Spectrum(sel)
+
+	s.gui(locals())
+
+
+
+def noise_generators():
+	# Noise: White noise generator, flat spectrum.
+	# PinkNoise: Pink noise generator, 3dB rolloff per octave.
+	# BrownNoise: Brown noise generator, 6dB rolloff per octave.
+	s = Server().boot()
+
+	# White noise
+	n1 = Noise(0.3)
+
+	# Pink noise
+	n2 = PinkNoise(0.3)
+
+	# Brown noise
+	n3 = BrownNoise(0.3)
+
+	# Interpolates between input objects to produce a single output
+	sel = Selector([n1, n2, n3]).out()
+	sel.ctrl(title="Input interpolator (0=White, 1=Pink, 2=Brown)")
+
+	# Displays the spectrum contents of the chosen source
+	sp = Spectrum(sel)
+
+	s.gui(locals())
+
+
+
+def strange_attractors():
+	# A strange attractor is a system of three non-linear ordinary differential equations. 
+	# These differential equations define a continuous-time dynamical system that exhibits chaotic dynamics 
+	# associated with the fractal properties of the attractor.
+	# bro what the fuck
+
+	s = Server().boot()
+
+	### Oscilloscope ###
+
+	# LFO applied to the `chaos` attribute
+	lfo = Sine(0.2).range(0, 1)
+
+	# Rossler attractor
+	n1 = Rossler(pitch=0.5, chaos=lfo, stereo=True)
+
+	# Lorenz attractor
+	n2 = Lorenz(pitch=0.5, chaos=lfo, stereo=True)
+
+	# ChenLee attractor
+	n3 = ChenLee(pitch=0.5, chaos=lfo, stereo=True)
+
+	# Interpolates between input objects to produce a single output
+	sel = Selector([n1, n2, n3])
+	sel.ctrl(title="Input interpolator (0=Rossler, 1=Lorenz, 2=ChenLee)")
+
+	# Displays the waveform of the chosen attractor
+	sc = Scope(sel)
+
+	### Audio ###
+
+	# Lorenz with very low pitch value that acts as a LFO
+	freq = Lorenz(0.005, chaos=0.7, stereo=True, mul=250, add=500)
+	a = Sine(freq, mul=0.3).out()
+
+	s.gui(locals())
+
+
+
+def random_generators():
+	s = Server().boot()
+
+	# Two streams of midi pitches chosen randomly in a predefined list.
+	# The argument `choice` of Choice object can be a list of lists to
+	# list-expansion.
+	mid = Choice(choice=[60,62,63,65,67,69,71,72], freq=[2,3])
+
+	# Two small jitters applied on frequency streams.
+	# Randi interpolates between old and new values.
+	jit = Randi(min=0.993, max=1.007, freq=[4.3,3.5])
+
+	# Converts midi pitches to frequencies and applies the jitters.
+	fr = MToF(mid, mul=jit)
+
+	# Chooses a new feedback value, between 0 and 0.15, every 4 seconds.
+	fd = Randi(min=0, max=0.15, freq=0.25)
+
+	# RandInt generates a pseudo-random integer number between 0 and `max`
+	# values at a frequency specified by `freq` parameter. It holds the
+	# value until the next generation.
+	# Generates an new LFO frequency once per second.
+	sp = RandInt(max=6, freq=1, add=8)
+	# Creates an LFO oscillating between 0 and 0.4.
+	amp = Sine(sp, mul=0.2, add=0.2)
+
+	# A simple synth...
+	a = SineLoop(freq=fr, feedback=fd, mul=amp).out()
+
+	s.gui(locals())
+
+
+
+
+###				 ###
+### 06 - FILTERS ###
+###				 ###
+
+def lowpass_filters():
+	# Tone : IIR first-order lowpass
+	# ButLP : IIR second-order lowpass (Butterworth)
+	# MoogLP : IIR fourth-order lowpass (+ resonance as an extra parameter)
+
+	s = Server().boot()
+
+	# White noise generator
+	n = Noise(.5)
+
+	# Common cutoff frequency control
+	freq = Sig(1000)
+	freq.ctrl([SLMap(50, 5000, "lin", "value", 1000)], title="Cutoff Frequency")
+
+	# Three different lowpass filters
+	tone = Tone(n, freq)
+	butlp = ButLP(n, freq)
+	mooglp = MoogLP(n, freq)
+
+	# Interpolates between input objects to produce a single output
+	sel = Selector([tone, butlp, mooglp]).out()
+	sel.ctrl(title="Filter selector (0=Tone, 1=ButLP, 2=MoogLP)")
+
+	# Displays the spectrum contents of the chosen source
+	sp = Spectrum(sel)
+
+	s.gui(locals())
+
+
+
+def bandpass_filters():
+	# This example illustrates the difference between a simple IIR second-order bandpass filter and a cascade of second-order bandpass filters. 
+	# A cascade of four bandpass filters with a high Q can be used as a efficient resonator on the signal.
+
+	s = Server().boot()
+
+	# White noise generator
+	n = Noise(.5)
+
+	# Common cutoff frequency control
+	freq = Sig(1000)
+	freq.ctrl([SLMap(50, 5000, "lin", "value", 1000)], title="Cutoff Frequency")
+
+	# Common filter's Q control
+	q = Sig(5)
+	q.ctrl([SLMap(0.7, 20, "log", "value", 5)], title="Filter's Q")
+
+	# Second-order bandpass filter
+	bp1 = Reson(n, freq, q=q)
+	# Cascade of second-order bandpass filters
+	bp2 = Resonx(n, freq, q=q, stages=4)
+
+	# Interpolates between input objects to produce a single output
+	sel = Selector([bp1, bp2]).out()
+	sel.ctrl(title="Filter selector (0=Reson, 1=Resonx)")
+
+	# Displays the spectrum contents of the chosen source
+	sp = Spectrum(sel)
+
+	s.gui(locals())
+
+
+
+def complex_resonator():
+	s = Server().boot()
+
+	# Six random frequencies.
+	freqs = [random.uniform(1000, 3000) for i in range(6)]
+
+	# Six different plucking speeds.
+	pluck = Metro([.9,.8,.6,.4,.3,.2]).play()
+
+	# LFO applied to the decay of the resonator.
+	decay = Sine(.1).range(.01, .15)
+
+	# Six ComplexRes filters.
+	rezos = ComplexRes(pluck, freqs, decay, mul=5).out()
+
+	# Change chime frequencies every 7.2 seconds
+	def new():
+	    freqs = [random.uniform(1000, 3000) for i in range(6)]
+	    rezos.freq = freqs
+	pat = Pattern(new, 7.2).play()
+
+	s.gui(locals())
+
+
+def phasing():
+	# A phaser is an electronic sound processor used to filter a signal by creating a series of peaks and troughs in the frequency spectrum. 
+	# The position of the peaks and troughs of the waveform being affected is typically modulated so that they vary over time, 
+	# creating a sweeping effect. For this purpose, phasers usually include a low-frequency oscillator.
+
+	s = Server().boot()
+
+	# Simple fadein.
+	fade = Fader(fadein=.5, mul=.2).play()
+
+	# Noisy source.
+	a = PinkNoise(fade)
+
+	# These LFOs modulate the `freq`, `spread` and `q` arguments of
+	# the Phaser object. We give a list of two frequencies in order
+	# to create two-streams LFOs, therefore a stereo phasing effect.
+	lf1 = Sine(freq=[.1, .15], mul=100, add=250)
+	lf2 = Sine(freq=[.18, .13], mul=.4, add=1.5)
+	lf3 = Sine(freq=[.07, .09], mul=5, add=6)
+
+	# Apply the phasing effect with 20 notches.
+	b = Phaser(a, freq=lf1, spread=lf2, q=lf3, num=20, mul=.5).out()
+
+	s.gui(locals())
+
+
+
+
+
+
+
+
 
 
 
@@ -367,6 +693,6 @@ def handling_channels_4():
 
 if __name__ == "__main__":
 	#function here
-	handling_channels_4()
+	phasing()
 
 	
