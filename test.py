@@ -693,6 +693,6 @@ def phasing():
 
 if __name__ == "__main__":
 	#function here
-	phasing()
+	strange_attractors()
 
 	
